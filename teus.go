@@ -45,6 +45,21 @@ func read_file(filename string) {
 
 }
 
+func write_file(filename string) {
+    file, err := os.Create(filename)
+    if err != nil { fmt.Println(err) }
+    defer file.Close()
+
+    writer := bufio.NewWriter(file)
+    for row, line := range text_buffer {
+        new_line := "\n"
+        if row == len(text_buffer) - 1 { new_line = "" }
+        write_line := string(line) + new_line
+        _, err = writer.WriteString(write_line)
+        if err != nil { fmt.Println("Error: ", err) }
+    }; writer.Flush(); modified = false
+}
+
 func insert_rune(event termbox.Event) {
     insert_rune := make([]rune, len(text_buffer[current_row]) + 1)
     copy(insert_rune[:current_col], text_buffer[current_row][:current_col])
@@ -56,6 +71,42 @@ func insert_rune(event termbox.Event) {
     copy(insert_rune[current_col + 1:], text_buffer[current_row][current_col:])
     text_buffer[current_row] = insert_rune
     current_col++
+}
+
+func delete_rune() {
+    if current_col > 0 {
+        current_col--
+        delete_line := make([]rune, len(text_buffer[current_row]) - 1)
+        copy(delete_line[:current_col], text_buffer[current_row][:current_col])
+        copy(delete_line[current_col:], text_buffer[current_row][current_col + 1:])
+        text_buffer[current_row] = delete_line
+    } else if current_row > 0 {
+        append_line := make([]rune, len(text_buffer[current_row]))
+        copy(append_line, text_buffer[current_row][current_col:])
+        new_text_buffer := make([][]rune, len(text_buffer) - 1)
+        copy(new_text_buffer[:current_row], text_buffer[:current_row])
+        copy(new_text_buffer[current_row:], text_buffer[current_row + 1:])
+        text_buffer = new_text_buffer; current_row--
+        current_col = len(text_buffer[current_row])
+        insert_line := make([]rune, len(text_buffer[current_row]) + len(append_line))
+        copy(insert_line[:len(text_buffer[current_row])], text_buffer[current_row])
+        copy(insert_line[len(text_buffer[current_row]):], append_line)
+        text_buffer[current_row] = insert_line
+    }
+}
+
+func insert_line() {
+    right_line := make([]rune, len(text_buffer[current_row][current_col:]))
+    copy(right_line, text_buffer[current_row][current_col:])
+    left_line := make([]rune, len(text_buffer[current_row][:current_col]))
+    copy(left_line, text_buffer[current_row][:current_col])
+    text_buffer[current_row] = left_line
+    current_row++; current_col = 0
+    new_text_buffer := make([][]rune, len(text_buffer) + 1)
+    copy(new_text_buffer, text_buffer[:current_row])
+    new_text_buffer[current_row] = right_line
+    copy(new_text_buffer[current_row + 1:], text_buffer[current_row:])
+    text_buffer = new_text_buffer
 }
 
 func scroll_text_buffer() {
@@ -135,10 +186,14 @@ func process_key_press() {
             switch key_event.Ch {
                 case 'q': termbox.Close(); os.Exit(0)
                 case 'i': mode = 1
+                case 'w': write_file(source_file)
             }
         }
     } else {
         switch key_event.Key {
+            case termbox.KeyEnter: if mode == 1 { insert_line(); modified = true }
+            case termbox.KeyBackspace: if mode == 1 { delete_rune(); modified = true }
+            case termbox.KeyBackspace2: if mode == 1 { delete_rune(); modified = true }
             case termbox.KeyTab:
                 if mode == 1 {
                     for i:= 0; i <4; i++ { insert_rune(key_event) }
