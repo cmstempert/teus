@@ -215,7 +215,7 @@ func get_key() termbox.Event {
 
 func process_key_press() {
     key_event := get_key()
-    if key_event.Key == termbox.KeyEsc { mode = 0
+    if key_event.Key == termbox.KeyEsc || key_event.Key == termbox.KeyCtrlJ { mode = 0
     } else if key_event.Ch != 0 {
         if mode == 1 { insert_rune(key_event); modified = true
         } else {
@@ -226,8 +226,16 @@ func process_key_press() {
                 case 'c': copy_line()
                 case 'p': paste_line()
                 case 'x': cut_line()
-                case 's': push_buffer()
-                case 'l': pull_buffer()
+                case 'v': push_buffer()
+                case 'n': pull_buffer()
+                case 'h': if current_col != 0 { current_col-- } else if current_row > 0 {
+                              current_row--; current_col = len(text_buffer[current_row]) }
+                case 'k': if current_row != 0 { current_row-- }
+                case 'j': if current_row < len(text_buffer) - 1 { current_row++ }
+                case 'l': if current_col < len(text_buffer[current_row]) { current_col++
+                              } else if current_row < len(text_buffer) - 1 { current_row++; current_col = 0 }
+                case '0': current_col = 0
+                case '$': current_col = len(text_buffer[current_row])
             }
         }
     } else {
@@ -262,10 +270,10 @@ func process_key_press() {
                     current_row++
                     current_col = 0
                 }
-        }; if current_col > len(text_buffer[current_row]) {
-            current_col = len(text_buffer[current_row])
         }
-    }
+    }; if current_col > len(text_buffer[current_row]) {
+            current_col = len(text_buffer[current_row])
+       }
 }
 
 func run_editor() {
